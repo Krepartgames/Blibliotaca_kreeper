@@ -22,11 +22,24 @@ export default class Transferencia extends Component {
       dados: "",
     })
   }
+  pegarDadosScaner = async({type,data})=>{
+    this.setState({
+      modo:'normal',
+      scaneado: true,
+      dados: data,
+    })
+  }
 
   render(){
+    const{modo,permisao,scaneado,dados} = this.state
+    if (modo === "scanner"){
+      return(
+        <BarCodeScanner onBarCodeScanned={scaneado?undefined:this.pegarDadosScaner} style = {StyleSheet.absoluteFillObject}/>
+      )
+    } 
     return (
       <View style={styles.container}>
-        <Text>{this.state.modo}</Text>
+        <Text>{permisao?scaneado:"aperte o botão para dar acesso a camera para escaneamento"}</Text>
         <TouchableOpacity style={styles.btn} onPress = {()=>{
           this.pegarPermisao("scanner")
         }}>
