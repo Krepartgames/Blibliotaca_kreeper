@@ -2,6 +2,8 @@ import React, { Component } from 'react'
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ImageBackground, Image } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
+import { doc, getDoc } from "firebase/firestore";
+import {db} from "../config";
 const fundoImg = require("../assets/background2.png")
 const icone = require("../assets/appIcon.png")
 const name = require("../assets/appName.png")
@@ -35,6 +37,13 @@ export default class Transferencia extends Component {
       scaneado: true,
       idLivro: data,
     })
+    fazerTrans = () =>{
+      const {idLivro} = this.state
+      const doclivro = doc(db,"livros",idLivro)
+      getDoc(doclivro)
+      .then(doc => console.log(doc.data()))
+      .catch(error => alert(error.mesage))
+    }
     console.log(this.state.idLivro)
     }
     if (modo === "idAluno"){
@@ -77,6 +86,9 @@ export default class Transferencia extends Component {
                 <Text style={styles.scanbuttonText}> digitalizar</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity style={styles.button} onPress={this.fazerTrans}>
+              <Text style={styles.buttonText}> Enviar </Text>
+            </TouchableOpacity>
           </View>
         </ImageBackground>
       </View>
@@ -135,6 +147,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F48D20",
     borderRadius: 15,
     marginTop: 25,
+    height: 55,
   },
   lowerContainer: {
     flex: 0.5,
