@@ -37,13 +37,7 @@ export default class Transferencia extends Component {
       scaneado: true,
       idLivro: data,
     })
-    fazerTrans = () =>{
-      const {idLivro} = this.state
-      const doclivro = doc(db,"livros",idLivro)
-      getDoc(doclivro)
-      .then(doc => console.log(doc.data()))
-      .catch(error => alert(error.mesage))
-    }
+    
     console.log(this.state.idLivro)
     }
     if (modo === "idAluno"){
@@ -53,6 +47,13 @@ export default class Transferencia extends Component {
       idAluno: data,
     })
     }
+  }
+  fazerTrans = () =>{
+    const {idLivro} = this.state
+    const doclivro = doc(db,"livros",idLivro)
+    getDoc(doclivro)
+    .then(doc => console.log(doc.data()))
+    .catch(error => alert(error.message))
   }
 
   render() {
