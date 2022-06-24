@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ImageBackground, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ImageBackground, Image, KeyboardAvoidingView, ToastAndroid } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { doc, getDoc } from "firebase/firestore";
 import {db} from "../config";
@@ -18,6 +18,8 @@ export default class Transferencia extends Component {
       dados: "",
       idLivro: "",
       idAluno: "",
+      nomeLivro:"",
+      nomeAluno:"",
     }
   }
   pegarPermisao = async (modo) => {
@@ -50,10 +52,70 @@ export default class Transferencia extends Component {
   }
   fazerTrans = () =>{
     const {idLivro} = this.state
+    const {idAluno}= this.state
+    this.pegarInfoLivro(idLivro)
+    //this.pegarInfoAluno(idAluno)
+    const disponibilidade = this.checarDisponibilidadeLivro(idLivro)
+
+    if (disponibilidade){
+      if(disponibilidade === "issue"){
+        this.iniciarRetirada()
+      } else {
+        this.iniciarDevolucao()
+      }
+    }else{
+      ToastAndroid.show("Documento não localizado, tente novamente", ToastAndroid.LONG)
+    }
+
     const doclivro = doc(db,"livros",idLivro)
     getDoc(doclivro)
     .then(doc => console.log(doc.data()))
     .catch(error => alert(error.message))
+    
+  }
+  pegarInfoLivro =(idLivro) =>{
+    idLivro = idLivro.trim()
+    const doclivro = doc(db,"livros",idLivro)
+    getDoc(doclivro)
+    .then((doc) => {
+      this.setState({
+        nomeLivro: doc.data().livro_nome
+      })
+    }).catch(error => alert(error.message))
+  }
+
+  pegarInfoAluno =(idAluno) =>{
+    idAluno = idAluno.trim()
+    const docAluno = doc(db,"alunos",idAluno)
+    getDoc(docAluno)
+    .then((doc) => {
+      this.setState({
+        nomeAluno: doc.data().aluno_nome
+      })
+    }).catch(error => alert(error.message))
+  }
+
+  checarDisponibilidadeLivro = async(idLivro) => {
+    const doclivro = doc(db,"livros",idLivro)
+    getDoc(doclivro)
+    .then((doc) => {
+      var livro = doc.data()
+      if (livro) {
+        if (livro.esta_disponivel){
+          return "issue"
+        }else {
+          return "return"
+        }
+      } else {
+        return false
+      }
+    }).catch(error => alert(error.message))
+  }
+  iniciarRetirada = () =>{
+    ToastAndroid.show("livro Retirado", ToastAndroid.LONG)
+  }
+  iniciarDevolucao = () =>{
+    ToastAndroid.show("livro Devolvido", ToastAndroid.LONG)
   }
 
   render() {
@@ -64,7 +126,7 @@ export default class Transferencia extends Component {
       )
     }
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView style={styles.container} behavior = "height">
         <ImageBackground source={fundoImg} style = {styles.bgImage}>
           <View style = { styles.upperContainer}>
             <Image source={icone} style = {styles.appIcon} />
@@ -72,7 +134,12 @@ export default class Transferencia extends Component {
           </View>
           <View style={styles.lowerContainer}>
             <View style={styles.textInputContainer}>
-              <TextInput placeholder={"id do livro"} placeholderTextcolor={"white"} style={styles.textInput}  value = {idLivro}/>
+              <TextInput placeholder={"id do livro"} placeholderTextcolor={"white"} style={styles.textInput}  value = {idLivro} 
+              onChangeText = {(text) =>{
+                this.setState({
+                  idLivro: text
+                })
+              }}/>
               <TouchableOpacity style={styles.scanbutton} onPress={() => {
                 this.pegarPermisao("idLivro")
               }}>
@@ -80,7 +147,12 @@ export default class Transferencia extends Component {
               </TouchableOpacity>
             </View>
             <View style={styles.textInputContainer}>
-              <TextInput placeholder={"id do aluno"} placeholderTextcolor={"white"} style={styles.textInput} value = {idAluno}/>
+              <TextInput placeholder={"id do aluno"} placeholderTextcolor={"white"} style={styles.textInput} value = {idAluno} 
+              onChangeText = {(text) =>{
+                this.setState({
+                  idAluno: text
+                })
+              }}/>
               <TouchableOpacity style={styles.scanbutton} onPress={() => {
                 this.pegarPermisao("idAluno")
               }}>
@@ -92,7 +164,7 @@ export default class Transferencia extends Component {
             </TouchableOpacity>
           </View>
         </ImageBackground>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 }
