@@ -2,8 +2,10 @@ import React, { Component } from 'react'
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ImageBackground, Image, KeyboardAvoidingView, ToastAndroid } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, limit, orderBy, addDoc, updateDoc, serverTimestamp, increment } from "firebase/firestore";
 import {db} from "../config";
+import { async } from '@firebase/util';
+
 const fundoImg = require("../assets/background2.png")
 const icone = require("../assets/appIcon.png")
 const name = require("../assets/appName.png")
@@ -50,18 +52,24 @@ export default class Transferencia extends Component {
     })
     }
   }
-  fazerTrans = () =>{
+  fazerTrans = async() =>{
     const {idLivro} = this.state
     const {idAluno}= this.state
-    this.pegarInfoLivro(idLivro)
-    //this.pegarInfoAluno(idAluno)
+    await this.pegarInfoLivro(idLivro)
+    await this.pegarInfoAluno(idAluno)
     const disponibilidade = this.checarDisponibilidadeLivro(idLivro)
 
     if (disponibilidade){
       if(disponibilidade === "issue"){
-        this.iniciarRetirada()
+        var elegivel = this.checarAlunoParaRetirada(idAluno)
+        
+        elegivel? this.iniciarRetirada(): null
+
       } else {
-        this.iniciarDevolucao()
+        var elegivel = this.checarAlunoParaDevolucao(idAluno,idLivro)
+
+        elegivel? this.iniciarDevolucao(): null
+
       }
     }else{
       ToastAndroid.show("Documento não localizado, tente novamente", ToastAndroid.LONG)
@@ -73,26 +81,32 @@ export default class Transferencia extends Component {
     .catch(error => alert(error.message))
     
   }
-  pegarInfoLivro =(idLivro) =>{
+  pegarInfoLivro = async(idLivro) =>{
     idLivro = idLivro.trim()
-    const doclivro = doc(db,"livros",idLivro)
-    getDoc(doclivro)
-    .then((doc) => {
+    const refLivro = doc(db,"livros",idLivro)
+    try {
+      const doclivro = await getDoc(refLivro)
       this.setState({
-        nomeLivro: doc.data().livro_nome
+        nomeLivro: doclivro.data().livro_nome
       })
-    }).catch(error => alert(error.message))
+    } catch (error) {
+      console.error(error.message)
+      alert(error.message)
+    }
   }
 
-  pegarInfoAluno =(idAluno) =>{
+  pegarInfoAluno = async(idAluno) =>{
     idAluno = idAluno.trim()
-    const docAluno = doc(db,"alunos",idAluno)
-    getDoc(docAluno)
-    .then((doc) => {
+    const refAluno = doc(db,"alunos",idAluno)
+    const docAluno = await getDoc(refAluno)
+    try {
       this.setState({
-        nomeAluno: doc.data().aluno_nome
+        nomeAluno: docAluno.data().aluno_nome
       })
-    }).catch(error => alert(error.message))
+    } catch (error) {
+      console.error(error.message)
+      alert(error.message)
+    }
   }
 
   checarDisponibilidadeLivro = async(idLivro) => {
@@ -100,7 +114,7 @@ export default class Transferencia extends Component {
     getDoc(doclivro)
     .then((doc) => {
       var livro = doc.data()
-      if (livro) {
+      if (doc.exists()) {
         if (livro.esta_disponivel){
           return "issue"
         }else {
@@ -111,11 +125,92 @@ export default class Transferencia extends Component {
       }
     }).catch(error => alert(error.message))
   }
-  iniciarRetirada = () =>{
-    ToastAndroid.show("livro Retirado", ToastAndroid.LONG)
+  iniciarRetirada = (idLivro,idAluno,nomeLivro,nomeAluno) =>{
+    //ToastAndroid.show("livro Retirado", ToastAndroid.LONG)
+    var refTransferencias = collection(db, "transferencias")
+    var livroRef = doc(db, "livros", idLivro)
+    var alunoRef = doc(db, "alunos", idAluno)
+    addDoc(refTransferencias, {
+      aluno_id: idAluno,
+      aluno_nome: nomeAluno,
+      livro_id: idLivro,
+      livro_nome: nomeLivro,
+      data: serverTimestamp(),
+      tipo_transferencia: "issue"
+    })
+    updateDoc(livroRef,{
+        esta_disponivel: false
+      })
+    updateDoc(alunoRef, {
+      num_livros_retirados: increment(1)
+    })
+
+    alert("livro Retirado")
   }
-  iniciarDevolucao = () =>{
-    ToastAndroid.show("livro Devolvido", ToastAndroid.LONG)
+  iniciarDevolucao = (idLivro,idAluno,nomeAluno,nomeLivro) =>{
+    //ToastAndroid.show("livro Devolvido", ToastAndroid.LONG)
+    var refTransferencias = collection(db, "transferencias")
+    var livroRef = doc(db, "livros", idLivro)
+    var alunoRef = doc(db, "alunos", idAluno)
+    addDoc(refTransferencias, {
+      aluno_id: idAluno,
+      aluno_nome: nomeAluno,
+      livro_id: idLivro,
+      livro_nome: nomeLivro,
+      data: serverTimestamp(),
+      tipo_transferencia: "return"
+    })
+    updateDoc(livroRef,{
+        esta_disponivel: true
+      })
+    updateDoc(alunoRef, {
+      num_livros_retirados: increment(-1)
+    })
+    alert("livro devovido")
+  }
+
+  checarAlunoParaRetirada = async(idAluno)=>{
+    const refAluno = doc(db,"alunos",idAluno)
+    const docAluno = await getDoc(refAluno)
+
+    var elegivel
+
+    if (docAluno.exists()){
+      if (docAluno.data().num_livros_retirados < 2) {
+        elegivel = true
+      } else {
+        elegivel = false
+        alert("Limite maximo de livros atingido")
+      }
+    }else{
+      elegivel = false
+      alert("id de aluno não identificado")
+    }
+
+    return elegivel
+  }
+
+  checarAlunoParaDevolucao = async(idAluno, idLivro)=>{
+    const refTransferencia = query(
+      collection(db, "transferencias"),
+      where("livro_id", "==", idAluno),
+      orderBy("data", "desc"),
+      limit(1)
+      )
+      
+      const docTransferencia = await getDocs(refTransferencia)
+
+      var elegivel
+      var ultimaTransferencia = docTransferencia.data()
+
+      if (ultimaTransferencia.aluno_id === idAluno){
+        elegivel = true
+      }else{
+        elegivel = false
+        alert(" Este livro não foi pego por este aluno")
+      }
+
+      return elegivel
   }
 
   render() {
