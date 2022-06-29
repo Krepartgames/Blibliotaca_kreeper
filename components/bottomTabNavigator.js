@@ -40,7 +40,7 @@ export default class Navigator extends Component {
             var iconName
             if (route.name === "Transferencia"){
               iconName = "book"
-            }else if(route.name === "Pesquisaa"){
+            }else if(route.name === "Pesquisar"){
               iconName = "search"
             }
             return <Ionicons name = {iconName} size = {size} color = {color}/> 
@@ -48,7 +48,7 @@ export default class Navigator extends Component {
         }) 
         }>
           <Tab.Screen name = "Transferencia" component = {Transferencia}/>
-          <Tab.Screen name = "Pesquisaa" component = {Pesquisa}/>
+          <Tab.Screen name = "Pesquisar" component = {Pesquisa}/>
         </Tab.Navigator>
       </NavigationContainer>
     );

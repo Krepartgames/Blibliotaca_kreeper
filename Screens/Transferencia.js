@@ -57,18 +57,19 @@ export default class Transferencia extends Component {
     const {idAluno}= this.state
     await this.pegarInfoLivro(idLivro)
     await this.pegarInfoAluno(idAluno)
-    const disponibilidade = this.checarDisponibilidadeLivro(idLivro)
+    const {nomeLivro, nomeAluno} = this.state
+    const disponibilidade = await this.checarDisponibilidadeLivro(idLivro)
 
     if (disponibilidade){
       if(disponibilidade === "issue"){
         var elegivel = this.checarAlunoParaRetirada(idAluno)
         
-        elegivel? this.iniciarRetirada(): null
+        elegivel? this.iniciarRetirada(idLivro, idAluno, nomeLivro, nomeAluno): null
 
       } else {
         var elegivel = this.checarAlunoParaDevolucao(idAluno,idLivro)
 
-        elegivel? this.iniciarDevolucao(): null
+        elegivel? this.iniciarDevolucao(idLivro, idAluno, nomeLivro, nomeAluno): null
 
       }
     }else{
@@ -111,10 +112,11 @@ export default class Transferencia extends Component {
 
   checarDisponibilidadeLivro = async(idLivro) => {
     const doclivro = doc(db,"livros",idLivro)
-    getDoc(doclivro)
-    .then((doc) => {
-      var livro = doc.data()
-      if (doc.exists()) {
+    const documento = await getDoc(doclivro)
+
+      try {
+        var livro = documento.data()
+      if (documento.exists()) {
         if (livro.esta_disponivel){
           return "issue"
         }else {
@@ -123,7 +125,9 @@ export default class Transferencia extends Component {
       } else {
         return false
       }
-    }).catch(error => alert(error.message))
+      } catch (error) {
+        console.error(error.message)
+      }
   }
   iniciarRetirada = (idLivro,idAluno,nomeLivro,nomeAluno) =>{
     //ToastAndroid.show("livro Retirado", ToastAndroid.LONG)
@@ -201,7 +205,8 @@ export default class Transferencia extends Component {
       const docTransferencia = await getDocs(refTransferencia)
 
       var elegivel
-      var ultimaTransferencia = docTransferencia.data()
+      docTransferencia.forEach((doc)=>{
+        var ultimaTransferencia = doc.data()
 
       if (ultimaTransferencia.aluno_id === idAluno){
         elegivel = true
@@ -209,6 +214,7 @@ export default class Transferencia extends Component {
         elegivel = false
         alert(" Este livro não foi pego por este aluno")
       }
+      })
 
       return elegivel
   }
